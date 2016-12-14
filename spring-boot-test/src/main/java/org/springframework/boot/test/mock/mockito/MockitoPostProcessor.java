@@ -18,14 +18,7 @@ package org.springframework.boot.test.mock.mockito;
 
 import java.beans.PropertyDescriptor;
 import java.lang.reflect.Field;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.aop.support.AopUtils;
@@ -319,11 +312,28 @@ public class MockitoPostProcessor extends InstantiationAwareBeanPostProcessorAda
 	}
 
 	private void registerSpy(SpyDefinition definition, Field field, String beanName) {
+		if (isAlreadyRegisteredAndIsPrimary(definition)) {
+			// don't register this new spy since we already registered one which is primary
+			return;
+		}
+
 		this.spies.put(beanName, definition);
 		this.beanNameRegistry.put(definition, beanName);
 		if (field != null) {
 			this.fieldRegistry.put(field, new RegisteredField(definition, beanName));
 		}
+	}
+
+	private boolean isAlreadyRegisteredAndIsPrimary(SpyDefinition definition) {
+		if (this.beanNameRegistry.keySet().contains(definition)) {
+			String existingBeanName = this.beanNameRegistry.get(definition);
+			BeanDefinition existingBeanDefinition = ((ConfigurableListableBeanFactory) this.beanFactory)
+					.getBeanDefinition(existingBeanName);
+			if (existingBeanDefinition.isPrimary()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	protected Object createSpyIfNecessary(Object bean, String beanName)
